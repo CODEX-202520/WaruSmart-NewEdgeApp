@@ -24,8 +24,8 @@ class DeviceRepository:
     @staticmethod
     def get_or_create_test_device()->Device:
         device, _ = DeviceModel.get_or_create(
-            device_id='smart-band-002340i9j',
-            defaults={"api_key": "test-api-key", "created_at": datetime.now()}
+            device_id='waru-smart-001',
+            defaults={"api_key": "test-api-key-123", "created_at": datetime.now().isoformat()}
         )
         return Device(device.device_id, device.api_key, device.created_at)
 

@@ -10,10 +10,10 @@ class DeviceMetricRepository:
         return [
             DeviceMetric(
                 device_id=m.device_id,
-                timestamp=m.timestamp,
+                created_at=m.timestamp,
                 metric_type=m.metric_type,
                 value=m.value,
-                zone_id=m.zone_id,
+                zone=m.zone,
                 unit=m.unit
             )
             for m in metrics
@@ -23,10 +23,10 @@ class DeviceMetricRepository:
     def add(metric: DeviceMetric) -> DeviceMetric:
         DeviceMetricModel.create(
             device_id=metric.device_id,
-            timestamp=metric.timestamp,
+            timestamp=metric.created_at,
             metric_type=metric.metric_type,
             value=metric.value,
-            zone_id=metric.zone_id,
+            zone=metric.zone,
             unit=metric.unit
         )
         return metric

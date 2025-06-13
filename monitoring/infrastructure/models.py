@@ -1,14 +1,16 @@
-
+import peewee
 from peewee import Model, CharField, DateTimeField, FloatField
 from shared.infrastructure.database import db
+import datetime
 
-class DeviceMetricModel(Model):
-    device_id = CharField()
-    timestamp = DateTimeField()
-    metric_type = CharField()
-    value = FloatField()
-    zone_id = CharField(null=True)
-    unit = CharField(null=True)
+class DeviceMetricModel(peewee.Model):
+    id = peewee.AutoField()  # Clave primaria autoincremental
+    device_id = peewee.CharField()
+    created_at = peewee.DateTimeField(default=datetime.datetime.now)
+    metric_type = peewee.CharField()
+    value = peewee.FloatField()
+    zone = peewee.CharField(null=True)
+    unit = peewee.CharField(null=True)
 
     class Meta:
         database = db

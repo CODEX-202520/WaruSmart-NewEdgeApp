@@ -11,15 +11,15 @@ class DeviceMetric:
     def __init__(
         self,
         device_id: str,
-        timestamp: datetime,
+        created_at: datetime,
         metric_type: MetricType,
         value: float,
-        zone_id: Optional[str] = None,
+        zone: Optional[str] = None,
         unit: Optional[str] = None
     ):
         self.device_id = device_id
-        self.timestamp = timestamp
+        self.created_at = created_at
         self.metric_type = metric_type
         self.value = value
-        self.zone_id = zone_id
+        self.zone = zone
         self.unit = unit
