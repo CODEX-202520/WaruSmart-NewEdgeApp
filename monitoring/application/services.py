@@ -1,5 +1,6 @@
 from monitoring.domain.entities import DeviceMetric
-from monitoring.infrastructure.respositories import DeviceMetricRepository
+from monitoring.domain.esp32client import Esp32Client
+from monitoring.infrastructure.respositories import DeviceMetricRepository, ActuatorRepository
 from iam.application.services import AuthApplicationService
 
 class DeviceMetricApplicationService:
@@ -20,3 +21,35 @@ class DeviceMetricApplicationService:
             created_at=created_at
         )
         return self.metric_repository.add(metric)
+
+
+class ActuatorApplicationService:
+    def __init__(self):
+        # Dependencias del servicio
+        self.actuator_repository = ActuatorRepository()
+        self.esp32_client = Esp32Client("http://esp32-device.local/activate")
+
+    def activate_actuator(self, device_id, action, created_at, api_key):
+        actuator = self.actuator_repository.get_actuator_by_device_id(device_id)
+
+        if not actuator:
+            raise ValueError(f"No actuator found for device_id: {device_id}")
+
+        if action == "irrigate":
+            actuator.activate()
+            self.actuator_repository.save(actuator)
+
+            # Si el actuador está en el ESP32, enviar la solicitud de activación
+            self.esp32_client.send_activation_request(action)
+
+            return actuator
+        elif action == "deactivate":
+            actuator.deactivate()
+            self.actuator_repository.save(actuator)
+
+            # Si el actuador está en el ESP32, enviar la solicitud de desactivación
+            self.esp32_client.send_activation_request(action)
+
+            return actuator
+        else:
+            raise ValueError("Unknown action")

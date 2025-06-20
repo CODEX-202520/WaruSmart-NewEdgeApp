@@ -23,3 +23,16 @@ class DeviceMetric:
         self.value = value
         self.zone = zone
         self.unit = unit
+
+
+class Actuator:
+    def __init__(self, device_id: str, actuator_type: str, status: bool = False):
+        self.device_id = device_id
+        self.actuator_type = actuator_type
+        self.status = status
+
+    def activate(self):
+        self.status = True
+
+    def deactivate(self):
+        self.status = False
