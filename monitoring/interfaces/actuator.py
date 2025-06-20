@@ -7,7 +7,7 @@ actuator_api = Blueprint('actuator_api', __name__)
 @actuator_api.route('/api/v1/actuators/status', methods=['GET'])
 def get_activation_status():
     # Código para manejar la solicitud GET
-    return jsonify({"status": "success"})
+    return jsonify({"status": "success", "action": "irrigate"})
 
 def create_app():
     app = Flask(__name__)
