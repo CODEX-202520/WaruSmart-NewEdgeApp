@@ -24,11 +24,12 @@ def create_device_metric():
         )
         return jsonify({
             "device_id": metric.device_id,
-            "metric_type": metric.metric_type,
+            "metric_type": str(metric.metric_type.value),  # <-- Convierte a string
             "value": metric.value,
             "zone": metric.zone,
             "unit": metric.unit,
-            "created_at": metric.created_at.isoformat() + "Z"
+            "created_at": metric.created_at,
+            "status": metric.status
         }), 201
     except KeyError:
         return jsonify({"error": "Missing required fields"}), 400

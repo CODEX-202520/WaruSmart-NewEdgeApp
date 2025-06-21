@@ -2,6 +2,7 @@ from monitoring.domain.entities import DeviceMetric
 from monitoring.domain.esp32client import Esp32Client
 from monitoring.infrastructure.respositories import DeviceMetricRepository, ActuatorRepository
 from iam.application.services import AuthApplicationService
+from monitoring.domain.entities import DeviceMetric, MetricType
 
 class DeviceMetricApplicationService:
     def __init__(self):
@@ -12,9 +13,13 @@ class DeviceMetricApplicationService:
                              created_at: str, api_key: str) -> DeviceMetric:
         if not self.iam_service.get_by_id_and_api_key(device_id, api_key):
             raise ValueError("ID de dispositivo o API key inválidos")
+        try:
+            metric_type_enum = MetricType(metric_type)
+        except ValueError:
+            raise ValueError("Tipo de métrica inválido.")
         metric = DeviceMetric(
             device_id=device_id,
-            metric_type=metric_type,
+            metric_type=metric_type_enum,
             value=value,
             zone=zone,
             unit=unit,

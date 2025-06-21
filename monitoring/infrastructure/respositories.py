@@ -14,7 +14,8 @@ class DeviceMetricRepository:
                 metric_type=m.metric_type,
                 value=m.value,
                 zone=m.zone,
-                unit=m.unit
+                unit=m.unit,
+                status=m.status
             )
             for m in metrics
         ]
@@ -27,7 +28,8 @@ class DeviceMetricRepository:
             metric_type=metric.metric_type,
             value=metric.value,
             zone=metric.zone,
-            unit=metric.unit
+            unit=metric.unit,
+            status=metric.status
         )
         return metric
 

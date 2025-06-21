@@ -11,6 +11,7 @@ class DeviceMetricModel(peewee.Model):
     value = peewee.FloatField()
     zone = peewee.CharField(null=True)
     unit = peewee.CharField(null=True)
+    status = peewee.CharField(max_length=50, null=True)  # <-- Nuevo campo
 
     class Meta:
         database = db
