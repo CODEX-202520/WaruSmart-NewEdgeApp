@@ -7,13 +7,24 @@ class DeviceMetricModel(peewee.Model):
     id = peewee.AutoField()  # Clave primaria autoincremental
     device_id = peewee.CharField()
     created_at = peewee.DateTimeField(default=datetime.datetime.now)
-    metric_type = peewee.CharField()
-    value = peewee.FloatField()
     zone = peewee.CharField(null=True)
-    unit = peewee.CharField(null=True)
-    status = peewee.CharField(max_length=50, null=True)  # <-- Nuevo campo
+    soil_moisture = peewee.FloatField()
+    temperature = peewee.FloatField()
+    humidity = peewee.FloatField()
 
     class Meta:
         database = db
         table_name = 'device_metrics'
-        primary_key = False  # No primary key
+
+
+
+class ActuatorModel(peewee.Model):
+    id = peewee.AutoField()  # Clave primaria autoincremental
+    device_id = peewee.CharField()
+    status = peewee.CharField(default="inactive")
+    actuator_type = peewee.CharField(default="relay")
+    created_at = peewee.DateTimeField(default=datetime.datetime.now)
+
+    class Meta:
+        database = db
+        table_name = 'actuators'

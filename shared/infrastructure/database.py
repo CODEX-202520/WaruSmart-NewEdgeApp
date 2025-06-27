@@ -2,7 +2,7 @@
 
 from peewee import SqliteDatabase
 
-db = SqliteDatabase('waru_smart.db')
+db = SqliteDatabase('waru-smart.db')
 
 def init_db() -> None:
     """

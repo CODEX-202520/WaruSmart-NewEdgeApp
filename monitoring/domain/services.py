@@ -1,49 +1,41 @@
 from datetime import timezone, datetime
 from dateutil.parser import parse
-from monitoring.domain.entities import DeviceMetric, MetricType
+from monitoring.domain.entities import DeviceMetric
 
 class MonitoringDomainService:
-    """Service for managing device metrics."""
+    """Servicio para gestionar métricas de dispositivos."""
     def __init__(self):
         pass
 
     @staticmethod
     def create_metric(
-        device_id: str,
-        metric_type: str,
-        value: float,
-        zone: str,
-        unit: str,
-        created_at: str | None = None
+            device_id: str,
+            zone: str,
+            soil_moisture: float,
+            temperature: float,
+            humidity: float,
+            created_at: str | None = None
     ) -> DeviceMetric:
         """
-        Creates a DeviceMetric instance.
+        Crea una instancia de DeviceMetric con los tres valores.
         """
         try:
-            value = float(value)
-            if value < 0:
-                raise ValueError("Metric value cannot be negative.")
-        except (ValueError, TypeError):
-            raise ValueError("Invalid input for value.")
-
-        if created_at:
-            try:
+            soil_moisture = float(soil_moisture)
+            temperature = float(temperature)
+            humidity = float(humidity)
+            if soil_moisture < 0 or humidity < 0:
+                raise ValueError("La humedad del suelo y la humedad ambiental no pueden ser negativas.")
+            if created_at:
                 parsed_created_at = parse(created_at).astimezone(timezone.utc)
-            except Exception:
-                raise ValueError("Invalid input for created_at.")
-        else:
-            parsed_created_at = datetime.now(timezone.utc)
-
-        try:
-            metric_type_enum = MetricType(metric_type)
-        except ValueError:
-            raise ValueError("Tipo de métrica inválido.")
-
+            else:
+                parsed_created_at = datetime.now(timezone.utc)
+        except (ValueError, TypeError):
+            raise ValueError("Entrada inválida para los valores o created_at.")
         return DeviceMetric(
             device_id=device_id,
-            metric_type=metric_type_enum,
-            value=value,
+            created_at=parsed_created_at,
             zone=zone,
-            unit=unit,
-            created_at=parsed_created_at
+            soil_moisture=soil_moisture,
+            temperature=temperature,
+            humidity=humidity
         )

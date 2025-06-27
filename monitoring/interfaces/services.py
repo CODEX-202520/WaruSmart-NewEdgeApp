@@ -7,31 +7,52 @@ monitoring_api = Blueprint("monitoring_api", __name__)
 device_metric_service = DeviceMetricApplicationService()
 
 @monitoring_api.route("/api/v1/monitoring/device-metrics", methods=["POST"])
-def create_device_metric():
+def create_device_metrics():
     auth_result = authenticate_request()
     if auth_result:
         return auth_result
     data = request.json
     try:
         device_id = data["device_id"]
-        metric_type = data["metric_type"]
-        value = data["value"]
         zone = data["zone"]
-        unit = data["unit"]
-        created_at = datetime.datetime.now()
+        soil_moisture = data.get("soil_moisture")
+        temperature = data.get("temperature")
+        humidity = data.get("humidity")
+        created_at = data.get("created_at")
+        api_key = request.headers.get("X-API-Key")
+
+        if soil_moisture is None or temperature is None or humidity is None:
+            return jsonify({"error": "Faltan valores de métricas"}), 400
+
+        if created_at is None:
+            created_at = datetime.datetime.utcnow().isoformat() + "Z"
+
         metric = device_metric_service.create_device_metric(
-            device_id, metric_type, value, zone, unit, created_at, request.headers.get("X-API-Key")
+            device_id=device_id,
+            zone=zone,
+            soil_moisture=soil_moisture,
+            temperature=temperature,
+            humidity=humidity,
+            created_at=created_at,
+            api_key=api_key
         )
+
+        created_at_value = metric.created_at
+        if isinstance(created_at_value, str):
+            created_at_str = created_at_value
+        else:
+            created_at_str = created_at_value.isoformat() + "Z"
+
         return jsonify({
             "device_id": metric.device_id,
-            "metric_type": str(metric.metric_type.value),  # <-- Convierte a string
-            "value": metric.value,
             "zone": metric.zone,
-            "unit": metric.unit,
-            "created_at": metric.created_at,
-            "status": metric.status
+            "soil_moisture": metric.soil_moisture,
+            "temperature": metric.temperature,
+            "humidity": metric.humidity,
+            "created_at": created_at_str
         }), 201
+
     except KeyError:
-        return jsonify({"error": "Missing required fields"}), 400
+        return jsonify({"error": "Faltan campos requeridos"}), 400
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
