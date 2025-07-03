@@ -30,6 +30,10 @@ class DeviceMetricApplicationService:
         )
         return self.metric_repository.add(metric)
 
+    def get_all_metrics_by_device(self, device_id):
+        from monitoring.infrastructure.models import DeviceMetricModel
+        return list(DeviceMetricModel.select().where(DeviceMetricModel.device_id == device_id))
+
 
 class ActuatorApplicationService:
     def __init__(self):

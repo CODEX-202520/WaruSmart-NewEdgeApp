@@ -1,8 +1,9 @@
-from flask import Flask, jsonify
+
+from flask import Flask, jsonify, request
 
 from monitoring.infrastructure.models import db, ActuatorModel
 from monitoring.infrastructure.repositories import ActuatorRepository
-from monitoring.application.services import ActuatorApplicationService
+from monitoring.application.services import ActuatorApplicationService, DeviceMetricApplicationService
 import iam.application.services
 from iam.infrastructure.fog_client import FogClient
 from iam.interfaces.services import iam_api
@@ -21,6 +22,11 @@ db.create_tables([ActuatorModel])
 actuator_repo = ActuatorRepository()
 actuator_repo.get_or_create_actuator(device_id="waru-smart-001")
 actuator_service = ActuatorApplicationService()
+device_metric_service = DeviceMetricApplicationService()
+
+fog_client = None  # Declara globalmente
+
+sensor_index = 0
 
 # Registra blueprints
 app.register_blueprint(iam_api)
@@ -31,7 +37,7 @@ first_request = True
 
 @app.before_request
 def setup():
-    global first_request
+    global first_request, fog_client
     if first_request:
         first_request = False
         init_db()
@@ -48,17 +54,37 @@ def setup():
 
 @app.route('/sensor', methods=['GET'])
 def get_sensor_data():
-    timestamp = int(time.time() * 1000)
-    sensor_data = {
-        'deviceId': 'edge-sector-2',
-        'temperature': round(20 + random.random() * 5, 2),
-        'humidity': round(60 + random.random() * 10, 2),
-        'timestamp': timestamp
+    global sensor_index
+    device_id = request.args.get('device_id', 'waru-smart-001')
+    metrics = device_metric_service.get_all_metrics_by_device(device_id)
+    if not metrics:
+        return jsonify({"mensaje": "No hay datos disponibles"}), 200
+
+    if sensor_index >= len(metrics):
+        return jsonify({"mensaje": "No hay más datos"}), 200
+
+    metric = metrics[sensor_index]
+    sensor_index += 1
+
+    created_at_value = metric.created_at
+    if isinstance(created_at_value, str):
+        created_at_str = created_at_value
+    else:
+        created_at_str = created_at_value.isoformat() + "Z"
+
+    result = {
+        "deviceId": metric.device_id,
+        "zone": metric.zone,
+        "soil_moisture": metric.soil_moisture,
+        "temperature": metric.temperature,
+        "humidity": metric.humidity,
+        "timestamp": created_at_str
     }
-    return jsonify(sensor_data)
+    return jsonify(result), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 ## if __name__ == '__main__':
