@@ -22,9 +22,10 @@ class DeviceMetricRepository:
 
     @staticmethod
     def add(metric: DeviceMetric) -> DeviceMetric:
+        created_at = metric.created_at = datetime.now().isoformat()
         DeviceMetricModel.create(
             device_id=metric.device_id,
-            created_at=metric.created_at,
+            created_at=created_at,
             zone=metric.zone,
             soil_moisture=metric.soil_moisture,
             temperature=metric.temperature,

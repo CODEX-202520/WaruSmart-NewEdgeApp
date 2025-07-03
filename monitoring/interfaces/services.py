@@ -3,6 +3,7 @@ from monitoring.application.services import DeviceMetricApplicationService
 from iam.interfaces.services import authenticate_request
 import datetime
 
+
 monitoring_api = Blueprint("monitoring_api", __name__)
 device_metric_service = DeviceMetricApplicationService()
 
