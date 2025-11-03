@@ -31,30 +31,49 @@ def auto_actuate():
     
     print("\n=== Estado Actual del Cultivo ===")
     print(f"Fase Fenológica: {phase}")
-    print(f"Condiciones actuales:")
+    
+    # Obtener estado de automatización
+    device_info = fog_client.get_device_info(device_id)
+    manually_active = device_info.get('manually_active', False)
+    overwrite_automation = device_info.get('overwrite_automation', False)
+    
+    print(f"\nModo de Control:")
+    print(f"- Control Manual: {'ACTIVADO' if overwrite_automation else 'DESACTIVADO'}")
+    if overwrite_automation:
+        print(f"- Estado Manual: {'ENCENDIDO' if manually_active else 'APAGADO'}")
+    
+    print(f"\nCondiciones actuales:")
     print(f"- Humedad del suelo: {soil_moisture}%")
     print(f"- Temperatura: {temperature}°C")
     print(f"- Humedad ambiental: {humidity}%")
-    print("\nUmbrales para esta fase:")
-    print(f"- Humedad del suelo mínima: {thresholds['soil_moisture_min']}%")
-    print(f"- Temperatura máxima: {thresholds['temperature_max']}°C")
-    print(f"- Humedad ambiental mínima: {thresholds['humidity_min']}%")
+    
+    if not overwrite_automation:
+        print("\nUmbrales para esta fase:")
+        print(f"- Humedad del suelo mínima: {thresholds['soil_moisture_min']}%")
+        print(f"- Temperatura máxima: {thresholds['temperature_max']}°C")
+        print(f"- Humedad ambiental mínima: {thresholds['humidity_min']}%")
 
-    # Evaluar cada condición por separado
-    moisture_condition = soil_moisture < thresholds["soil_moisture_min"]
-    temp_humidity_condition = (temperature > thresholds["temperature_max"] and 
-                             humidity < thresholds["humidity_min"])
-    
-    should_irrigate = moisture_condition or temp_humidity_condition
-    
-    print("\nEvaluación de condiciones:")
-    print(f"1. ¿Humedad del suelo muy baja? {'SÍ' if moisture_condition else 'NO'}")
-    print(f"2. ¿Temperatura alta y humedad baja? {'SÍ' if temp_humidity_condition else 'NO'}")
-    
-    # Si estamos en fase de Ripening o HarvestReady, nunca regar
-    if phase in ["Ripening", "HarvestReady"]:
-        should_irrigate = False
-        print("\nFase de maduración o cosecha detectada - Se deshabilita el riego")
+    # Decidir si regar basado en el modo de control
+    if overwrite_automation:
+        should_irrigate = manually_active
+        print("\nModo Manual Activado:")
+        print(f"Estado del riego: {'ENCENDIDO' if manually_active else 'APAGADO'} por control manual")
+    else:
+        # Evaluar cada condición por separado
+        moisture_condition = soil_moisture < thresholds["soil_moisture_min"]
+        temp_humidity_condition = (temperature > thresholds["temperature_max"] and 
+                                humidity < thresholds["humidity_min"])
+        
+        should_irrigate = moisture_condition or temp_humidity_condition
+        
+        print("\nEvaluación de condiciones automáticas:")
+        print(f"1. ¿Humedad del suelo muy baja? {'SÍ' if moisture_condition else 'NO'}")
+        print(f"2. ¿Temperatura alta y humedad baja? {'SÍ' if temp_humidity_condition else 'NO'}")
+        
+        # Si estamos en fase de Ripening o HarvestReady, nunca regar
+        if phase in ["Ripening", "HarvestReady"]:
+            should_irrigate = False
+            print("\nFase de maduración o cosecha detectada - Se deshabilita el riego")
 
     action = "irrigate" if should_irrigate else "deactivate"
     print(f"\nDecisión final: {'ACTIVAR' if should_irrigate else 'DESACTIVAR'} el riego")

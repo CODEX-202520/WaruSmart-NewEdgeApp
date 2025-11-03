@@ -5,7 +5,7 @@ from monitoring.infrastructure.models import db, ActuatorModel
 from monitoring.infrastructure.repositories import ActuatorRepository
 from monitoring.application.services import ActuatorApplicationService, DeviceMetricApplicationService
 import iam.application.services
-from iam.infrastructure.fog_client import FogClient
+from iam.infrastructure.fog_client import FogClient as IAMFogClient
 from iam.interfaces.services import iam_api
 from monitoring.interfaces.actuator import actuator_api
 from monitoring.interfaces.services import monitoring_api
@@ -43,10 +43,16 @@ def setup():
         init_db()
         auth_application_service = iam.application.services.AuthApplicationService()
         auth_application_service.get_or_create_test_device()
-        fog_client = FogClient(fog_url='http://localhost:8080')
+        # Initialize monitoring FogClient for device phases and irrigation thresholds
+        from monitoring.infrastructure.fog_client import FogClient as MonitoringFogClient
+        fog_client = MonitoringFogClient()  # Uses default URL http://localhost:8080
+        fog_client.setup_database()  # Force database setup
+        
+        # Initialize IAM FogClient for edge registration
+        iam_fog_client = IAMFogClient(fog_url='http://localhost:8080')
         edge_id = 'edge-sector-1'
         device_info = 'Edge 1 de la hectarea 1'
-        response = fog_client.register_edge(edge_id, device_info)
+        response = iam_fog_client.register_edge(edge_id, device_info)
         if response:
             print(f"Edge {edge_id} registrado exitosamente.")
         else:

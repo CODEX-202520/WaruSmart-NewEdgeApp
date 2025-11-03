@@ -22,7 +22,9 @@ class FogClient:
         c.execute('''CREATE TABLE IF NOT EXISTS device_phases
                     (device_id TEXT PRIMARY KEY,
                      phenological_phase TEXT,
-                     last_updated TIMESTAMP)''')
+                     last_updated TIMESTAMP,
+                     manually_active BOOLEAN,
+                     overwrite_automation BOOLEAN)''')
         
         # Tabla para almacenar los umbrales de riego por fase
         c.execute('''CREATE TABLE IF NOT EXISTS irrigation_thresholds
@@ -70,11 +72,13 @@ class FogClient:
                 response_data = response.json()
                 print(f"Fog response data: {response_data}")
                 phase = response_data.get("phenologicalPhase")
+                manually_active = response_data.get("manuallyActive", False)
+                overwrite_automation = response_data.get("overwriteAutomation", False)
                 # Actualizar el caché
                 c.execute('''INSERT OR REPLACE INTO device_phases
-                            (device_id, phenological_phase, last_updated)
-                            VALUES (?, ?, ?)''',
-                         (device_id, phase, datetime.now()))
+                            (device_id, phenological_phase, last_updated, manually_active, overwrite_automation)
+                            VALUES (?, ?, ?, ?, ?)''',
+                         (device_id, phase, datetime.now(), manually_active, overwrite_automation))
                 conn.commit()
                 return phase
         except Exception as e:
@@ -112,4 +116,53 @@ class FogClient:
             "soil_moisture_min": 60,  # Valor más alto para asegurar riego
             "temperature_max": 28,    # Valor más bajo para asegurar riego
             "humidity_min": 40        # Valor más alto para asegurar riego
+        }
+        
+    def get_device_info(self, device_id: str) -> dict:
+        """Obtiene la información completa del dispositivo desde el caché"""
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        
+        try:
+            # Intentar obtener nuevo valor del Fog
+            response = requests.get(
+                f"{self.base_url}/api/v1/devices/{device_id}/phase",
+                timeout=5
+            )
+            if response.status_code == 200:
+                response_data = response.json()
+                phase = response_data.get("phenologicalPhase")
+                manually_active = response_data.get("manuallyActive", False)
+                overwrite_automation = response_data.get("overwriteAutomation", False)
+                # Actualizar el caché
+                c.execute('''INSERT OR REPLACE INTO device_phases
+                            (device_id, phenological_phase, last_updated, manually_active, overwrite_automation)
+                            VALUES (?, ?, ?, ?, ?)''',
+                         (device_id, phase, datetime.now(), manually_active, overwrite_automation))
+                conn.commit()
+                return {
+                    "phenological_phase": phase,
+                    "manually_active": manually_active,
+                    "overwrite_automation": overwrite_automation
+                }
+        except Exception as e:
+            print(f"Error getting device info from Fog: {e}")
+
+        # Si falla, intentar obtener del caché
+        c.execute('''SELECT phenological_phase, manually_active, overwrite_automation
+                    FROM device_phases WHERE device_id = ?''', (device_id,))
+        result = c.fetchone()
+        
+        if result:
+            return {
+                "phenological_phase": result[0],
+                "manually_active": bool(result[1]),
+                "overwrite_automation": bool(result[2])
+            }
+        
+        # Si no hay datos en caché, devolver valores por defecto
+        return {
+            "phenological_phase": "Germination",
+            "manually_active": False,
+            "overwrite_automation": False
         }
