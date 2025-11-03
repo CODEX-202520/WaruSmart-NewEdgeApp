@@ -39,25 +39,31 @@ class ActuatorApplicationService:
     def __init__(self):
         from monitoring.infrastructure.repositories import ActuatorRepository
         from monitoring.domain.esp32client import Esp32Client
+        import os
 
         self.actuator_repository = ActuatorRepository()
-        self.esp32_client = Esp32Client("http://esp32-device.local/activate")
+        # Allow overriding the ESP32 actuator URL via environment variable for environments
+        # where mDNS name resolution (esp32-device.local) is not available.
+        default_actuator_url = "http://esp32-device.local/activate"
+        actuator_url = os.environ.get('ESP32_ACTUATOR_URL', default_actuator_url)
+        print(f"ActuatorApplicationService: using actuator_url={actuator_url}")
+        self.esp32_client = Esp32Client(actuator_url)
 
-    def activate_actuator(self, device_id, action, created_at, api_key):
+    def activate_actuator(self, device_id, action, created_at, api_key, phenological_phase=None):
         actuator = self.actuator_repository.get_actuator_by_device_id(device_id)
 
         if not actuator:
             raise ValueError(f"No actuator found for device_id: {device_id}")
 
-        if action == "irrigate":
+        if action == "irrigate" and phenological_phase != "HarvestReady":
             actuator.activate()
             self.actuator_repository.save(actuator)
             self.esp32_client.send_activation_request(action)
             return actuator
-        elif action == "deactivate":
+        elif action == "deactivate" or phenological_phase == "HarvestReady":
             actuator.deactivate()
             self.actuator_repository.save(actuator)
-            self.esp32_client.send_activation_request(action)
+            self.esp32_client.send_activation_request("deactivate")
             return actuator
         else:
             raise ValueError("Unknown action")

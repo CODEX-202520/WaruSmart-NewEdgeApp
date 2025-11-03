@@ -44,8 +44,8 @@ def setup():
         auth_application_service = iam.application.services.AuthApplicationService()
         auth_application_service.get_or_create_test_device()
         fog_client = FogClient(fog_url='http://localhost:8080')
-        edge_id = 'edge-sector-2'
-        device_info = 'Edge 2 de la hectarea 2'
+        edge_id = 'edge-sector-1'
+        device_info = 'Edge 1 de la hectarea 1'
         response = fog_client.register_edge(edge_id, device_info)
         if response:
             print(f"Edge {edge_id} registrado exitosamente.")
