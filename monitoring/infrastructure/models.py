@@ -1,5 +1,5 @@
 import peewee
-from peewee import Model, CharField, DateTimeField, FloatField
+from peewee import Model, CharField, DateTimeField, FloatField, BooleanField
 from shared.infrastructure.database import db
 import datetime
 
@@ -15,6 +15,22 @@ class DeviceMetricModel(peewee.Model):
     class Meta:
         database = db
         table_name = 'device_metrics'
+
+class DeviceConfigModel(peewee.Model):
+    id = peewee.AutoField()
+    device_id = peewee.CharField(unique=True)
+    parcela_id = peewee.CharField()
+    soil_moisture_min_device = peewee.FloatField()
+    temperature_max_device = peewee.FloatField()
+    humidity_min_device = peewee.FloatField()
+    overwrite_automation = peewee.BooleanField(default=False)
+    manually_active = peewee.BooleanField(default=False)
+    created_at = peewee.DateTimeField(default=datetime.datetime.now)
+    updated_at = peewee.DateTimeField(default=datetime.datetime.now)
+
+    class Meta:
+        database = db
+        table_name = 'device_configs'
 
 
 

@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from monitoring.application.services import DeviceMetricApplicationService
+from monitoring.infrastructure.models import DeviceConfigModel
 from iam.interfaces.services import authenticate_request
 import datetime
 
@@ -57,3 +58,85 @@ def create_device_metrics():
         return jsonify({"error": "Faltan campos requeridos"}), 400
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
+
+@monitoring_api.route("/api/v1/device-config", methods=["POST"])
+def update_device_config():
+    auth_result = authenticate_request()
+    if auth_result:
+        return auth_result
+        
+    data = request.json
+    required_fields = [
+        "soil_moisture_min_device",
+        "temperature_max_device",
+        "humidity_min_device",
+        "overwrite_automation",
+        "manually_active",
+        "device_id",
+        "parcela_id"
+    ]
+    
+    # Verificar que todos los campos requeridos estén presentes
+    if not all(field in data for field in required_fields):
+        return jsonify({
+            "error": "Faltan campos requeridos",
+            "required_fields": required_fields
+        }), 400
+    
+    try:
+        # Convertir valores a los tipos correctos
+        device_id = str(data["device_id"])
+        parcela_id = str(data["parcela_id"])
+        soil_moisture_min = float(data["soil_moisture_min_device"])
+        temperature_max = float(data["temperature_max_device"])
+        humidity_min = float(data["humidity_min_device"])
+        overwrite_automation = bool(data["overwrite_automation"])
+        manually_active = bool(data["manually_active"])
+        
+        # Validar rangos
+        if not (0 <= soil_moisture_min <= 100):
+            return jsonify({"error": "soil_moisture_min_device debe estar entre 0 y 100"}), 400
+        if not (0 <= humidity_min <= 100):
+            return jsonify({"error": "humidity_min_device debe estar entre 0 y 100"}), 400
+        if not (-20 <= temperature_max <= 60):
+            return jsonify({"error": "temperature_max_device debe estar entre -20 y 60"}), 400
+        
+        # Actualizar o crear configuración
+        config, created = DeviceConfigModel.get_or_create(
+            device_id=device_id,
+            defaults={
+                "parcela_id": parcela_id,
+                "soil_moisture_min_device": soil_moisture_min,
+                "temperature_max_device": temperature_max,
+                "humidity_min_device": humidity_min,
+                "overwrite_automation": overwrite_automation,
+                "manually_active": manually_active
+            }
+        )
+        
+        if not created:
+            config.parcela_id = parcela_id
+            config.soil_moisture_min_device = soil_moisture_min
+            config.temperature_max_device = temperature_max
+            config.humidity_min_device = humidity_min
+            config.overwrite_automation = overwrite_automation
+            config.manually_active = manually_active
+            config.updated_at = datetime.datetime.now()
+            config.save()
+
+        return jsonify({
+            "message": "Configuración actualizada correctamente",
+            "device_id": device_id,
+            "parcela_id": parcela_id,
+            "soil_moisture_min_device": soil_moisture_min,
+            "temperature_max_device": temperature_max,
+            "humidity_min_device": humidity_min,
+            "overwrite_automation": overwrite_automation,
+            "manually_active": manually_active,
+            "updated_at": config.updated_at.isoformat() + "Z"
+        }), 200
+
+    except ValueError as e:
+        return jsonify({"error": f"Error en el formato de los datos: {str(e)}"}), 400
+    except Exception as e:
+        return jsonify({"error": f"Error interno: {str(e)}"}), 500

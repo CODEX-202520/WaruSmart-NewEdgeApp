@@ -2,10 +2,9 @@ from flask import Blueprint, request, jsonify
 from monitoring.infrastructure.repositories import DeviceMetricRepository
 from monitoring.application.services import ActuatorApplicationService
 from monitoring.domain.irrigation_rules import IrrigationRules
-from monitoring.infrastructure.fog_client import FogClient
+from monitoring.infrastructure.models import DeviceConfigModel
 
 actuator_api = Blueprint('actuator_api', __name__)
-fog_client = FogClient()  # Crea una instancia única del FogClient
 
 @actuator_api.route('/api/v1/actuators/status', methods=['POST'])
 def auto_actuate():
@@ -18,63 +17,40 @@ def auto_actuate():
     if not last_metric:
         return jsonify({"error": "No hay métricas para este dispositivo"}), 404
 
-    # Obtener la fase fenológica actual del cultivo usando el FogClient con caché
-    phenological_phase = fog_client.get_phenological_phase(device_id)
-
     soil_moisture = last_metric.soil_moisture
     temperature = last_metric.temperature
     humidity = last_metric.humidity
 
-    # Obtener la fase fenológica y sus umbrales correspondientes
-    phase = fog_client.get_phenological_phase(device_id)
-    thresholds = fog_client.get_irrigation_thresholds(phase)
-    
+    # Evaluar si debe regar usando las reglas de irrigación configuradas
+    irrigation_rules = IrrigationRules()
+    should_irrigate = irrigation_rules.should_irrigate(
+        device_id=device_id,
+        soil_moisture=soil_moisture,
+        temperature=temperature,
+        humidity=humidity
+    )
+
     print("\n=== Estado Actual del Cultivo ===")
-    print(f"Fase Fenológica: {phase}")
-    
-    # Obtener estado de automatización
-    device_info = fog_client.get_device_info(device_id)
-    manually_active = device_info.get('manually_active', False)
-    overwrite_automation = device_info.get('overwrite_automation', False)
-    
-    print(f"\nModo de Control:")
-    print(f"- Control Manual: {'ACTIVADO' if overwrite_automation else 'DESACTIVADO'}")
-    if overwrite_automation:
-        print(f"- Estado Manual: {'ENCENDIDO' if manually_active else 'APAGADO'}")
-    
     print(f"\nCondiciones actuales:")
     print(f"- Humedad del suelo: {soil_moisture}%")
     print(f"- Temperatura: {temperature}°C")
     print(f"- Humedad ambiental: {humidity}%")
     
-    if not overwrite_automation:
-        print("\nUmbrales para esta fase:")
-        print(f"- Humedad del suelo mínima: {thresholds['soil_moisture_min']}%")
-        print(f"- Temperatura máxima: {thresholds['temperature_max']}°C")
-        print(f"- Humedad ambiental mínima: {thresholds['humidity_min']}%")
-
-    # Decidir si regar basado en el modo de control
-    if overwrite_automation:
-        should_irrigate = manually_active
-        print("\nModo Manual Activado:")
-        print(f"Estado del riego: {'ENCENDIDO' if manually_active else 'APAGADO'} por control manual")
-    else:
-        # Evaluar cada condición por separado
-        moisture_condition = soil_moisture < thresholds["soil_moisture_min"]
-        temp_humidity_condition = (temperature > thresholds["temperature_max"] and 
-                                humidity < thresholds["humidity_min"])
-        
-        should_irrigate = moisture_condition or temp_humidity_condition
-        
-        print("\nEvaluación de condiciones automáticas:")
-        print(f"1. ¿Humedad del suelo muy baja? {'SÍ' if moisture_condition else 'NO'}")
-        print(f"2. ¿Temperatura alta y humedad baja? {'SÍ' if temp_humidity_condition else 'NO'}")
-        
-        # Si estamos en fase de Ripening o HarvestReady, nunca regar
-        if phase in ["Ripening", "HarvestReady"]:
-            should_irrigate = False
-            print("\nFase de maduración o cosecha detectada - Se deshabilita el riego")
-
+    try:
+        config = DeviceConfigModel.get(DeviceConfigModel.device_id == device_id)
+        print("\nConfiguración del dispositivo:")
+        print(f"- Humedad mínima configurada: {config.soil_moisture_min_device}%")
+        print(f"- Temperatura máxima configurada: {config.temperature_max_device}°C")
+        print(f"- Humedad mínima configurada: {config.humidity_min_device}%")
+        print(f"- Control manual: {'ACTIVADO' if config.overwrite_automation else 'DESACTIVADO'}")
+        if config.overwrite_automation:
+            print(f"- Estado manual: {'ENCENDIDO' if config.manually_active else 'APAGADO'}")
+    except DeviceConfigModel.DoesNotExist:
+        print("\nUsando valores por defecto (no hay configuración específica)")
+        print("- Humedad mínima: 50%")
+        print("- Temperatura máxima: 30°C")
+        print("- Humedad mínima: 35%")
+    
     action = "irrigate" if should_irrigate else "deactivate"
     print(f"\nDecisión final: {'ACTIVAR' if should_irrigate else 'DESACTIVAR'} el riego")
     print("================================\n")
@@ -84,8 +60,7 @@ def auto_actuate():
         device_id, 
         action, 
         last_metric.created_at, 
-        "api_key",  # Ajusta api_key según tu lógica
-        phenological_phase
+        "api_key"
     )
 
     return jsonify({

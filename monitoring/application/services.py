@@ -33,6 +33,14 @@ class DeviceMetricApplicationService:
     def get_all_metrics_by_device(self, device_id):
         from monitoring.infrastructure.models import DeviceMetricModel
         return list(DeviceMetricModel.select().where(DeviceMetricModel.device_id == device_id))
+    
+    def get_last_metric_by_device(self, device_id):
+        from monitoring.infrastructure.models import DeviceMetricModel
+        return (DeviceMetricModel
+                .select()
+                .where(DeviceMetricModel.device_id == device_id)
+                .order_by(DeviceMetricModel.created_at.desc())
+                .first())
 
 
 class ActuatorApplicationService:
@@ -49,18 +57,18 @@ class ActuatorApplicationService:
         print(f"ActuatorApplicationService: using actuator_url={actuator_url}")
         self.esp32_client = Esp32Client(actuator_url)
 
-    def activate_actuator(self, device_id, action, created_at, api_key, phenological_phase=None):
+    def activate_actuator(self, device_id, action, created_at, api_key):
         actuator = self.actuator_repository.get_actuator_by_device_id(device_id)
 
         if not actuator:
             raise ValueError(f"No actuator found for device_id: {device_id}")
 
-        if action == "irrigate" and phenological_phase != "HarvestReady":
+        if action == "irrigate":
             actuator.activate()
             self.actuator_repository.save(actuator)
             self.esp32_client.send_activation_request(action)
             return actuator
-        elif action == "deactivate" or phenological_phase == "HarvestReady":
+        elif action == "deactivate":
             actuator.deactivate()
             self.actuator_repository.save(actuator)
             self.esp32_client.send_activation_request("deactivate")

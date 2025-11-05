@@ -1,19 +1,40 @@
+from monitoring.infrastructure.models import DeviceConfigModel
+
 class IrrigationRules:
     @staticmethod
-    def should_irrigate(phenological_phase: str, soil_moisture: float, temperature: float, humidity: float) -> bool:
-        rules = {
-            "Germination": lambda sm, t, h: sm < 60 or (t > 30 and h < 40),
-            "Tillering": lambda sm, t, h: sm < 50 or (t > 28 and h < 35),
-            "StemElongation": lambda sm, t, h: sm < 45 or (t > 30 and h < 30),
-            "Booting": lambda sm, t, h: sm < 50 or (t > 32 and h < 35),
-            "Heading": lambda sm, t, h: sm < 55 or (t > 30 and h < 40),
-            "Flowering": lambda sm, t, h: sm < 60 or (t > 32 and h < 35),
-            "GrainFilling": lambda sm, t, h: sm < 50 or (t > 33 and h < 30),
-            "Ripening": lambda sm, t, h: sm < 35,
-            "HarvestReady": lambda sm, t, h: False
-        }
-        
-        if phenological_phase not in rules:
-            raise ValueError(f"Unknown phenological phase: {phenological_phase}")
+    def should_irrigate(device_id: str, soil_moisture: float, temperature: float, humidity: float) -> bool:
+        """
+        Irrigation rules based on device-specific configuration thresholds
+        Args:
+            device_id: The ID of the device to get configuration for
+            soil_moisture: Current soil moisture reading
+            temperature: Current temperature reading
+            humidity: Current humidity reading
+        Returns:
+            bool: True if irrigation should be activated
+        """
+        try:
+            # Obtener la configuración específica del dispositivo
+            config = DeviceConfigModel.get(DeviceConfigModel.device_id == device_id)
             
-        return rules[phenological_phase](soil_moisture, temperature, humidity)
+            # Si la automatización está sobreescrita, usar el valor manual
+            if config.overwrite_automation:
+                return config.manually_active
+            
+            # Si no, usar los umbrales configurados para el dispositivo
+            moisture_condition = soil_moisture < config.soil_moisture_min_device
+            temp_humidity_condition = (temperature > config.temperature_max_device and 
+                                    humidity < config.humidity_min_device)
+            
+            return moisture_condition or temp_humidity_condition
+            
+        except DeviceConfigModel.DoesNotExist:
+            # Si no hay configuración, usar valores por defecto
+            DEFAULT_SOIL_MOISTURE_MIN = 50
+            DEFAULT_TEMPERATURE_MAX = 30
+            DEFAULT_HUMIDITY_MIN = 35
+            
+            print(f"WARNING: No configuration found for device {device_id}, using default values")
+            return soil_moisture < DEFAULT_SOIL_MOISTURE_MIN or (
+                temperature > DEFAULT_TEMPERATURE_MAX and humidity < DEFAULT_HUMIDITY_MIN
+            )
